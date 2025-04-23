@@ -22,7 +22,13 @@ class SimpleUI(TkinterDnD.Tk):
         self.configure(padx=20, pady=20, bg='#E4E0E1')
         self.iconbitmap('logo1.ico')
 
-        self.loaded_image = None
+        self.loaded_images = []
+        self.before_image_ref = None
+        self.after_image_ref = None
+        from PIL import ImageTk, Image
+        self.transparent_img = ImageTk.PhotoImage(Image.new("RGBA", (1, 1), (0, 0, 0, 0)))
+
+
 
         # Add modern app title
         self.app_title = ctk.CTkLabel(
@@ -62,21 +68,37 @@ class SimpleUI(TkinterDnD.Tk):
         #self.create_side_boxes(content_frame, column=0)
 
         # منطقة الصور
-        image_section = ctk.CTkFrame(content_frame, fg_color='#AB886D', corner_radius=30,width=600, height=400)
-        image_section.grid(row=0, column=1, sticky="nsew", padx=5,pady= 20)
+        image_section = ctk.CTkFrame(content_frame, fg_color='#AB886D', corner_radius=30, width=600, height=400)
+        image_section.grid(row=0, column=1, sticky="nsew", padx=5, pady=20)
+        image_section.grid_propagate(False)  # Prevent frame from resizing
 
-        image_frame = ctk.CTkFrame(image_section, fg_color='#AB886D', corner_radius=20,width=580, height=350)
+        image_frame = ctk.CTkFrame(image_section, fg_color='#AB886D', corner_radius=20, width=580, height=350)
         image_frame.pack(pady=20)
+        image_frame.pack_propagate(False)  # Prevent frame from resizing
 
-        self.before_label = ctk.CTkLabel(image_frame, text="Before", width=300, height=290,
-                                         fg_color="#E4E0E1", text_color="gray", corner_radius=20)
-        self.before_label.grid(row=0, column=0, padx=5, pady=30)
+        self.before_label = ctk.CTkLabel(
+            image_frame, 
+            text="Before", 
+            width=300, 
+            height=290,
+            fg_color="#E4E0E1", 
+            text_color="gray", 
+            corner_radius=20
+        )
+        self.before_label.grid(row=0, column=0, padx=5, pady=30, sticky="nsew")
         self.before_label.drop_target_register(DND_FILES)
         self.before_label.dnd_bind("<<Drop>>", self.on_image_drop)
 
-        self.after_label = ctk.CTkLabel(image_frame, text="After", width=300, height=290,
-                                        fg_color="#E4E0E1", text_color="gray", corner_radius=20)
-        self.after_label.grid(row=0, column=1, padx=5,pady=30)
+        self.after_label = ctk.CTkLabel(
+            image_frame, 
+            text="After", 
+            width=300, 
+            height=290,
+            fg_color="#E4E0E1", 
+            text_color="gray", 
+            corner_radius=20
+        )
+        self.after_label.grid(row=0, column=1, padx=5, pady=30, sticky="nsew")
 
         upload_btn = HoverButton(image_section, text="Upload Image", command=self.load_image)
         upload_btn.pack(pady=20)
@@ -125,6 +147,7 @@ class SimpleUI(TkinterDnD.Tk):
                         result_image = self.perform_operation(self.image_paths[0], self.image_paths[1], operation=name)
                         self.display_image(result_image, label=self.after_label)
 
+
                         # Reset the image paths after applying the operation
                         self.image_paths = []
                         self.show_text("Operation applied. Reset to upload new images.")
@@ -145,7 +168,6 @@ class SimpleUI(TkinterDnD.Tk):
                 box.grid(row=i, column=j, padx=5, pady=5)
 
     def load_image(self):
-
         if len(self.image_paths) >= 2:
             print("Two images are already uploaded. Please apply an operation or reset.")
             return
@@ -166,63 +188,117 @@ class SimpleUI(TkinterDnD.Tk):
 
         # Update the app title to indicate readiness for an operation
         if len(self.image_paths) == 2:
-            self.show_text("Images uploaded. Ready to apply an operation.")    
+            self.show_text("Images uploaded. Ready to apply an operation.")
+
+# def display_image(self, file_path, label):
+#     image = Image.open(file_path)
+#     image = image.resize((200, 200))  # Adjust size as needed
+#     photo = ImageTk.PhotoImage(image)
+
+#     label.configure(image=photo, text="")  # Remove text, show image
+#     label.image = photo  # Keep reference to avoid garbage collection
+   
 
     def on_image_drop(self, event):
         path = event.data.strip("{").strip("}")
         if os.path.isfile(path):
             self.display_image(path)
 
-    def display_image(self, path,label):
+    def display_image(self, source, label):
         try:
-            image = Image.open(path).resize((330, 280))
+            if isinstance(source, str):
+                image = Image.open(source).convert("RGB")
+            else:
+                image = source  # Already a PIL.Image
+
+            target_width, target_height = 260, 280
+            img_width, img_height = image.size
+
+            target_ratio = target_width / target_height
+            img_ratio = img_width / img_height
+
+            if img_ratio > target_ratio:
+                new_height = target_height
+                new_width = int(new_height * img_ratio)
+            else:
+                new_width = target_width
+                new_height = int(new_width / img_ratio)
+
+            image = image.resize((new_width, new_height), Image.LANCZOS)
+
+            left = (new_width - target_width) // 2
+            top = (new_height - target_height) // 2
+            right = left + target_width
+            bottom = top + target_height
+            image = image.crop((left, top, right, bottom))
+
             loaded_image = ImageTk.PhotoImage(image)
-            label.configure(image=loaded_image, text="")
-            label.image = loaded_image
+
+            # تأجيل تعيين الصورة لحين تأكيد أن الـ label موجود فعليًا في واجهة Tkinter
+            def update_label():
+                label.configure(image=loaded_image, text="")
+                label.image = loaded_image
+
+                # تخزين مرجعية منفصلة لكل label (حل نهائي)
+                if label == self.before_label:
+                    self.before_image_ref = loaded_image
+                elif label == self.after_label:
+                    self.after_image_ref = loaded_image
+
+            self.after(10, update_label)  # شغل بعد 10ms للتأكد من التثبيت في الواجهة
+
         except Exception as e:
             print(f"Error displaying image: {e}")
+            label.configure(text="Error loading image", image=None)
+            label.image = None
+
+
+
+
+
  
     def perform_operation(self, path1, path2, operation):
-    # Open the two images
         image1 = Image.open(path1).convert("RGB")
         image2 = Image.open(path2).convert("RGB")
 
-    # Ensure both images are the same size
-        image1 = image1.resize((330, 280))
-        image2 = image2.resize((330, 280))
+        image1 = image1.resize((300, 290))
+        image2 = image2.resize((300, 290))
 
-    # Perform the operation
         if operation == "ADD":
-            result = Image.blend(image1, image2, alpha=0.5)  # Blend the two images
+            result = Image.blend(image1, image2, alpha=0.5)
         elif operation == "SUB":
-            result = ImageChops.subtract(image1, image2)  # Subtract the two images
+            result = ImageChops.subtract(image1, image2)
         elif operation == "Division":
-            # Perform division operation (example: pixel-wise division)
-            result = ImageChops.darker(image1, image2)  # Placeholder for division logic
+            result = ImageChops.darker(image1, image2)
         else:
             raise ValueError(f"Unknown operation: {operation}")
 
-        # Save the result to a temporary file
-        result_path = "result_image.png"
-        result.save(result_path)
-        return result_path 
+        return result  # NOTE: return image object not path
+
+
     
     def reset_images(self):
-        # Clear the image paths
         self.image_paths = []
+        self.loaded_images.clear()
 
-        # Reset the "Before" and "After" labels
-        self.before_label.configure(image=None, text="Before")
-        self.before_label.image = None
-        self.after_label.configure(image=None, text="After")
-        self.after_label.image = None
+        # Force-clear image using transparent 1x1 image
+        self.before_label.configure(image=self.transparent_img, text="Before")
+        self.before_label.image = self.transparent_img
+        self.before_image_ref = None
 
-        # Reset the selected operation
+        self.after_label.configure(image=self.transparent_img, text="After")
+        self.after_label.image = self.transparent_img
+        self.after_image_ref = None
+
+        self.before_label.drop_target_register(DND_FILES)
+        self.before_label.dnd_bind("<<Drop>>", self.on_image_drop)
+
         self.selected_operation = None
 
-        # Update the app title or any other status
         self.show_text("Images reset. Ready to upload new ones.")
         print("Images have been reset.")
+
+
 
 
 
