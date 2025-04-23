@@ -1,5 +1,6 @@
 from PIL import Image
 import numpy as np
+import matplotlib as plt
 import cv2
 
 
@@ -9,25 +10,25 @@ import cv2
 # 1. Point Operations
 def addition(image1, image2):
     """Addition: y = image1 + image2"""
-    if x1.shape != x2.shape:
-        x2 = cv2.resize(x2, (x1.shape[1], x1.shape[0]))
-    return np.clip(x1 + x2, 0, 255).astype(np.uint8)
+    if image1.shape != image2.shape:
+        image2 = cv2.resize(image2, (image1.shape[1], image1.shape[0]))
+    return np.clip(image1 + image2, 0, 255).astype(np.uint8)
 
 def subtraction(image1, image2):
     """Subtraction: y = image1 - image2"""
-    if x1.shape != x2.shape:
-        x2 = cv2.resize(x2, (x1.shape[1], x1.shape[0]))
-    return np.clip(x1 - x2, 0, 255).astype(np.uint8)
+    if image1.shape != image2.shape:
+        image2 = cv2.resize(image2, (image1.shape[1], image1.shape[0]))
+    return np.clip(image1 - image2, 0, 255).astype(np.uint8)
 
 def division(image1, image2):
     """Division: y = image1 / (image2 + 1)"""
-    if x1.shape != x2.shape:
-        x2 = cv2.resize(x2, (x1.shape[1], x1.shape[0]))
-    return np.clip(x1 / (x2 + 1), 0, 255).astype(np.uint8)
+    if image1.shape != image2.shape:
+        image2 = cv2.resize(image2, (image1.shape[1], image1.shape[0]))
+    return np.clip(image1 / (image2 + 1), 0, 255).astype(np.uint8)
 
 def complement(image):
     """Complement: y = 255 - image1"""
-    return np.clip(255 - x, 0, 255).astype(np.uint8)
+    return np.clip(255 - image, 0, 255).astype(np.uint8) 
 
 # 2. Color Image Operations
 def change_red_lighting(image):

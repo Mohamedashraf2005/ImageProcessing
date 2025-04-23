@@ -4,6 +4,10 @@ from tkinter import filedialog
 from PIL import Image, ImageTk, ImageChops
 import os
 from tkinter.font import Font
+import cv2
+import numpy as np
+import matplotlib as plt
+import ImgScript
 
 
 ctk.set_appearance_mode("light")
@@ -34,7 +38,7 @@ class SimpleUI(TkinterDnD.Tk):
         self.app_title = ctk.CTkLabel(
             self,
             text="No Filter Selected Yet",
-            font=ctk.CTkFont(size=24, weight="bold"),
+            font=ctk.CTkFont(family='Comic Sans MS',size=24, weight="bold"),
             text_color='#493628',
             anchor="center"
         )
@@ -82,7 +86,8 @@ class SimpleUI(TkinterDnD.Tk):
             width=300, 
             height=290,
             fg_color="#E4E0E1", 
-            text_color="gray", 
+            text_color="gray",
+            font=('Comic Sans MS',25), 
             corner_radius=20
         )
         self.before_label.grid(row=0, column=0, padx=5, pady=30, sticky="nsew")
@@ -96,6 +101,7 @@ class SimpleUI(TkinterDnD.Tk):
             height=290,
             fg_color="#E4E0E1", 
             text_color="gray", 
+            font=('Comic Sans MS',25), 
             corner_radius=20
         )
         self.after_label.grid(row=0, column=1, padx=5, pady=30, sticky="nsew")
@@ -109,7 +115,9 @@ class SimpleUI(TkinterDnD.Tk):
     
         self.image_paths = []  # To store the paths of the two uploaded images
         self.selected_operation = None  # To store the selected operation
-
+    def pathtkimage(path):
+        imagepathed=Image.open(path)
+        return ImageTk.PhotoImage(imagepathed)
 
     def create_side_boxes(self, parent, column, button_names):
         side_frame = ctk.CTkFrame(parent, fg_color='#AB886D', corner_radius=25)
@@ -156,6 +164,128 @@ class SimpleUI(TkinterDnD.Tk):
                             print("Please upload at least one image first.")
                             self.show_text("Please upload at least one image first.")
                             return
+                       
+                        if name == 'Complement':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.complement(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                       
+                        if name == 'Hist stretching':
+                            # print(self.loaded_images[0])
+                            # gray_img = cv2.imread('red.jpg', cv2.IMREAD_GRAYSCALE)
+                            # cv2.imshow('GoldenGate',gray_img)
+                            # pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            pilimg=SimpleUI.pathtkimage(self.image_paths[0])
+                            graypilimg=cv2.imread(pilimg, cv2.IMREAD_GRAYSCALE)
+                            npimg=np.array(graypilimg)
+                            result_image = ImgScript.histogram_stretching_gray(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                    
+                        
+                        if name == 'Hist equalization':
+                            # print(self.loaded_images[0])
+                            ImgScript.histogram_equalization_gray(SimpleUI.pathtkimage(self.image_paths[0]))
+                        
+                        if name == 'Laplacian filter':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.laplacian_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                    
+                        if name == 'Change color':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.change_red_lighting(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+
+                        if name == 'Eliminate color':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.eliminate_red(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                       
+                        if name == 'Swap channel':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.swap_r_to_g(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+
+                        if name == 'MAX':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.maximum_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                            # ImgScript.maximum_filter(SimpleUI.pathtkimage(self.image_paths[0]))
+                       
+                        if name == 'MIN':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.minimum_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                            # ImgScript.minimum_filter(SimpleUI.pathtkimage(self.image_paths[0]))
+                                    
+                        if name == 'MEDIAN':
+                            # image1 = Image.open(path1).convert("RGB")
+                            # ImgScript.median_filter(SimpleUI.pathtkimage(self.image_paths[0]))
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.median_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                            
+                        if name == 'MODE':
+                            # image1 = Image.open(path1).convert("RGB")
+                            # ImgScript.median_filter(SimpleUI.pathtkimage(self.image_paths[0]))
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.mode_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                            
+
+                        if name == 'AVG filter':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.average_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+                        
+                        if name == 'S&P AVG filter':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.salt_pepper_avg(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
 
                         #Apply a single-image filter (placeholder logic)
                         print(f"Applying filter '{name}' to the first image.")
@@ -210,6 +340,7 @@ class SimpleUI(TkinterDnD.Tk):
                 image = Image.open(source).convert("RGB")
             else:
                 image = source  # Already a PIL.Image
+                
 
             target_width, target_height = 260, 280
             img_width, img_height = image.size
