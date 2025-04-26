@@ -8,6 +8,9 @@ import cv2
 import numpy as np
 import matplotlib as plt
 import ImgScript
+import matplotlib
+matplotlib.use('TkAgg')  # Use TkAgg backend for matplotlib
+import matplotlib.pyplot as plt
 
 
 ctk.set_appearance_mode("light")
@@ -58,7 +61,7 @@ class SimpleUI(TkinterDnD.Tk):
 
         button_names = ['ADD', 'SUB', 'Division', 'Complement', 'Change color', 'Swap channel', 'Eliminate color',
                     'Hist stretching', 'Hist equalization', 'AVG filter', 'Laplacian filter', 'MAX', 'MIN',
-                    'MEDIAN', 'MODE', 'S&P AVG filter', 'Median filter', 'Outlier filter', 'IMG AVG', 'GAUSSIAN AVG',
+                    'MEDIAN', 'MODE', 'S&P AVG filter', 'S&P Median Filter', 'S&P Outlier filter', 'IMG AVG', 'GAUSSIAN AVG',
                     'INT boundary','EXT boundary','Morophology','IMG dilation','IMG erosion','IMG opening',
                     'BG_THR','AUTO_THR','ADAP_THR','Sobel DET']
         left_button_names = button_names[:15]  # First 10 names
@@ -118,6 +121,57 @@ class SimpleUI(TkinterDnD.Tk):
     def pathtkimage(path):
         imagepathed=Image.open(path)
         return ImageTk.PhotoImage(imagepathed)
+    
+    def plot_histograms(self,hist_orig, hist_equalized):
+        """
+        Plot the original and equalized histograms in a new window.
+        """
+        plt.figure(figsize=(12, 6))
+
+        # Plot the original histogram
+        plt.subplot(1, 2, 1)
+        plt.title("Original Histogram")
+        plt.bar(range(256), hist_orig, color='gray')
+        plt.xlabel("Pixel Intensity")
+        plt.ylabel("Frequency")
+
+        # Plot the equalized histogram
+        plt.subplot(1, 2, 2)
+        plt.title("Equalized Histogram")
+        plt.bar(range(256), hist_equalized, color='gray')
+        plt.xlabel("Pixel Intensity")
+        plt.ylabel("Frequency")
+
+        # Show the plots
+        plt.tight_layout()
+        plt.show()
+
+    def plot_histogram_stretching(self,img, stretched_img):
+        """
+        Plot the histograms of the original and stretched images in a new window.
+        """
+        plt.figure(figsize=(12, 6))
+
+        # Histogram of Original Image
+        plt.subplot(1, 2, 1)
+        plt.hist(img.ravel(), bins=256, color='black', alpha=0.7)
+        plt.xlim([0, 256])
+        plt.title('Histogram of Original Image')
+        plt.xlabel('Pixel Intensity')
+        plt.ylabel('Frequency')
+
+        # Histogram of Stretched Image
+        plt.subplot(1, 2, 2)
+        plt.hist(stretched_img.ravel(), bins=256, color='black', alpha=0.7)
+        plt.xlim([0, 256])
+        plt.title('Histogram of Stretched Image')
+        plt.xlabel('Pixel Intensity')
+        plt.ylabel('Frequency')
+
+        # Show the plots
+        plt.tight_layout()
+        plt.show()
+
 
     def create_side_boxes(self, parent, column, button_names):
         side_frame = ctk.CTkFrame(parent, fg_color='#AB886D', corner_radius=25)
@@ -175,22 +229,25 @@ class SimpleUI(TkinterDnD.Tk):
                             self.display_image(resultpil, label=self.after_label)
                        
                         if name == 'Hist stretching':
-                            # print(self.loaded_images[0])
-                            # gray_img = cv2.imread('red.jpg', cv2.IMREAD_GRAYSCALE)
-                            # cv2.imshow('GoldenGate',gray_img)
-                            # pilimg=Image.open(self.image_paths[0]).convert("RGB")
-                            pilimg=SimpleUI.pathtkimage(self.image_paths[0])
-                            graypilimg=cv2.imread(pilimg, cv2.IMREAD_GRAYSCALE)
-                            npimg=np.array(graypilimg)
-                            result_image = ImgScript.histogram_stretching_gray(npimg)
-                            print(result_image.shape)
-                            resultpil=Image.fromarray(result_image)
+                            
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  
+                            npimg = np.array(pilimg)
+                            stretched_img = ImgScript.histogram_stretching(npimg)
+                            hist_orig, _ = np.histogram(npimg.flatten(), bins=256, range=(0, 256))
+                            hist_stretched, _ = np.histogram(stretched_img.flatten(), bins=256, range=(0, 256))
+                            resultpil = Image.fromarray(stretched_img)
                             self.display_image(resultpil, label=self.after_label)
+                            self.plot_histogram_stretching(npimg, stretched_img)
                     
                         
                         if name == 'Hist equalization':
-                            # print(self.loaded_images[0])
-                            ImgScript.histogram_equalization_gray(SimpleUI.pathtkimage(self.image_paths[0]))
+
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  
+                            npimg = np.array(pilimg)
+                            equalized_img, hist_orig, hist_equalized = ImgScript.histogram_equalization(npimg)
+                            resultpil = Image.fromarray(equalized_img)
+                            self.display_image(resultpil, label=self.after_label)
+                            self.plot_histograms(hist_orig, hist_equalized)
                         
                         if name == 'Laplacian filter':
                             # print(self.loaded_images[0])
@@ -273,7 +330,7 @@ class SimpleUI(TkinterDnD.Tk):
                             # print(self.loaded_images[0])
                             pilimg=Image.open(self.image_paths[0]).convert("RGB")
                             npimg=np.array(pilimg)
-                            result_image = ImgScript.average_filter(npimg)
+                            result_image = ImgScript.low_pass_filter(npimg)
                             print(result_image.shape)
                             resultpil=Image.fromarray(result_image)
                             self.display_image(resultpil, label=self.after_label)
@@ -286,6 +343,47 @@ class SimpleUI(TkinterDnD.Tk):
                             print(result_image.shape)
                             resultpil=Image.fromarray(result_image)
                             self.display_image(resultpil, label=self.after_label)
+
+                        if name == 'S&P Median Filter':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0])
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.salt_pepper_median(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label) 
+
+
+                        if name == 'S&P Outlier filter':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.salt_pepper_outlier(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label)
+
+
+                        if name == 'IMG AVG':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.gaussian_image_averaging(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label) 
+
+
+                        if name == 'GAUSSIAN AVG':
+                            # print(self.loaded_images[0])
+                            pilimg=Image.open(self.image_paths[0]).convert("RGB")
+                            npimg=np.array(pilimg)
+                            result_image = ImgScript.gaussian_average_filter(npimg)
+                            print(result_image.shape)
+                            resultpil=Image.fromarray(result_image)
+                            self.display_image(resultpil, label=self.after_label) 
+
+                                 
 
                         #Apply a single-image filter (placeholder logic)
                         print(f"Applying filter '{name}' to the first image.")
@@ -395,16 +493,36 @@ class SimpleUI(TkinterDnD.Tk):
         image1 = image1.resize((300, 290))
         image2 = image2.resize((300, 290))
 
+        # Convert images to NumPy arrays
+        npimg1 = np.array(image1)
+        npimg2 = np.array(image2)
+
         if operation == "ADD":
-            result = Image.blend(image1, image2, alpha=0.5)
+            # Call the addition function from ImgScript
+            result_image = ImgScript.addition(npimg1, npimg2)
+
+            # Convert the result back to a PIL image
+            resultpil = Image.fromarray(result_image)
+
+            # Display the result in the "After" label
+            self.display_image(resultpil, label=self.after_label)
+            
         elif operation == "SUB":
-            result = ImageChops.subtract(image1, image2)
+            
+            result_image = ImgScript.subtraction(npimg1, npimg2)
+            resultpil = Image.fromarray(result_image)
+            self.display_image(resultpil, label=self.after_label)
+
         elif operation == "Division":
-            result = ImageChops.darker(image1, image2)
+            
+            result_image = ImgScript.division(npimg1, npimg2)
+            resultpil = Image.fromarray(result_image)
+            self.display_image(resultpil, label=self.after_label)
+
         else:
             raise ValueError(f"Unknown operation: {operation}")
 
-        return result  # NOTE: return image object not path
+        #return result  # NOTE: return image object not path
 
 
     
@@ -428,7 +546,6 @@ class SimpleUI(TkinterDnD.Tk):
 
         self.show_text("Images reset. Ready to upload new ones.")
         print("Images have been reset.")
-
 
 
 
