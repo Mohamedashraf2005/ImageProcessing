@@ -43,10 +43,10 @@ def change_red_lighting(image):
 
 def swap_r_to_g(image):
     """Swap R channel to G channel"""
-    img = Image.fromarray(image).convert("RGB") 
-    r, g, b = img.split()   
-    new_img = Image.merge("RGB", (g, r, b)) 
-    return np.array(new_img)
+    image = Image.fromarray(image).convert("RGB") 
+    r, g, b = image.split()   
+    new_image = Image.merge("RGB", (g, r, b)) 
+    return np.array(new_image)
 
 
 def eliminate_red(image):
@@ -62,13 +62,15 @@ import numpy as np
 
 
 # 3. Image Histogram Operations
-def histogram_stretching_gray(image):
-    """Histogram stretching for grayscale image"""
-    RR = image.copy()
-    low=np.min(RR)
-    high=np.max(RR)
-    correct=((RR-low)/(high-low)*255)
-    return correct
+def histogram_stretching(image):
+    min_pixel = np.min(image)
+    max_pixel = np.max(image)
+
+    # Stretch the histogram
+    stretched_image = (image - min_pixel) * (255 / (max_pixel - min_pixel))
+    stretched_image = np.clip(stretched_image, 0, 255).astype(np.uint8)  # Ensure values are in uint8 range
+
+    return stretched_image
 
 ## for colored image
 
@@ -101,30 +103,39 @@ def histogram_stretching_gray(image):
 #     else:
 #         raise ValueError("Unsupported image format")
 
-def histogram_equalization_gray(image):
-    if len(image.shape) == 3:
-        gray_img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        gray_img = image.copy()
+def histogram_equalization(image):
+    hist_freq,_ = np.histogram(image.flatten(), 256, (0, 256))
+    pdf = hist_freq / hist_freq.sum()
+    cdf = pdf.cumsum()
+    cdf_equalized = (cdf * 255).astype(np.uint8)
+    equalized_image = cdf_equalized[image]
+    hist_freq_equalized, _ = np.histogram(equalized_image.flatten(), 256, [0, 256])
 
-    hist_orig = cv2.calcHist([gray_img], [0], None, [256], [0, 256]).flatten()
-    img_prop = hist_orig / gray_img.size
-    cum_sum_arr = np.cumsum(img_prop)
-    equalization_map = np.round(cum_sum_arr * 255).astype('uint8')
-    equalized_img = equalization_map[gray_img]
-
-    return equalized_img
+    return equalized_image, hist_freq, hist_freq_equalized
+    
 
 # 4. Neighborhood Processing
-def average_filter(image):
+#low pass flter == avg filter 
+def low_pass_filter(image):
+        # Check if the image is RGB (3D array)
+    if len(image.shape) == 3:
+        # Convert to grayscale if needed
+        image = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+   
+    kernel = np.ones((3, 3), np.float32) / 9  
 
-    kernel = np.ones((3, 3), np.float32) / 9
-    filtered = np.zeros_like(image)
-    for i in range(1, image.shape[0] - 1):
-        for j in range(1, image.shape[1] - 1):
-            region = image[i - 1:i + 2, j - 1:j + 2]
-            filtered[i, j] = np.clip(np.sum(region * kernel), 0, 255)
-    return filtered.astype(np.uint8)
+    height, width = image.shape
+    filtered_image = np.zeros((height, width), np.float32)
+    k_height, k_width = kernel.shape
+    k_center_y, k_center_x = k_height // 2, k_width // 2
+
+    for i in range(k_center_y, height - k_center_y):
+        for j in range(k_center_x, width - k_center_x):
+            neighborhood = image[i - k_center_y:i + k_center_y + 1, j - k_center_x:j + k_center_x + 1]
+            filtered_image[i, j] = np.sum(neighborhood * kernel)
+
+    return filtered_image
+    
 
 def laplacian_filter(image):
     return cv2.Laplacian(image, cv2.CV_64F).astype(np.uint8)
@@ -171,19 +182,22 @@ def mode_filter(image):
 # 5. Image Restoration
 def salt_pepper_avg(image):
     """Salt and pepper noise removal using average filter"""
-    return average_filter(image)
+    return low_pass_filter(image)
 
-def salt_pepper_median(image):
-    """Salt and pepper noise removal using median filter"""
-    filtered = np.zeros_like(image)
-    rows, cols = image.shape
-    for i in range(1, rows - 1):
-        for j in range(1, cols - 1):
-            region = image[i-1:i+2, j-1:j+2].flatten()
-            median_val = sorted(region)[len(region) // 2]
-            filtered[i, j] = median_val
-    return filtered
+#median filter to remove salt and pepper noise 
+def salt_pepper_median(image, kernel_size=3):
+    image_h, image_w = image.shape
+    filtered_image = np.zeros((image_h, image_w), dtype=np.uint8)
+    offset = kernel_size // 2
 
+
+    for i in range(offset, image_h - offset):
+        for j in range(offset, image_w - offset):
+            neighborhood = image[i - offset:i + offset + 1, j - offset:j + offset + 1]
+            median_value = np.median(neighborhood)
+            filtered_image[i, j] = median_value
+
+    return filtered_image
 
 def salt_pepper_outlier(image):
     """Salt and pepper noise removal using outlier method"""
@@ -209,17 +223,17 @@ def gaussian_image_averaging(image, num_noisy_images=10):
     for _ in range(num_noisy_images):
         noise = np.zeros_like(image)
         cv2.randn(noise, 0, 20)
-        noisy_img = image + noise
-        noisy_img = np.clip(noisy_img, 0, 255)
-        accumulated += noisy_img
+        noisy_image = image + noise
+        noisy_image = np.clip(noisy_image, 0, 255)
+        accumulated += noisy_image
 
-    average_img = accumulated / num_noisy_images
-    return np.clip(average_img, 0, 255).astype(np.uint8)
+    average_image = accumulated / num_noisy_images
+    return np.clip(average_image, 0, 255).astype(np.uint8)
 
 
 def gaussian_average_filter(image):
     """Gaussian noise removal using average filter"""
-    return average_filter(image)
+    return low_pass_filter(image)
 
 # 6. Image Segmentation
 def basic_global_thresholding(image, threshold=127):
