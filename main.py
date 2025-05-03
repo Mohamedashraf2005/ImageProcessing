@@ -24,8 +24,8 @@ ctk.set_appearance_mode("light")
 class SimpleUI(TkinterDnD.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Image Processing App")
-        self.geometry("1300x750")
+        self.title("Imagino App")
+        self.state('zoomed')
         self.configure(padx=20, pady=20, bg='#E4E0E1')
         self.iconbitmap('logo1.ico')
 
@@ -93,7 +93,7 @@ class SimpleUI(TkinterDnD.Tk):
             font=('Comic Sans MS',25), 
             corner_radius=20
         )
-        self.before_label.grid(row=0, column=0, padx=5, pady=30, sticky="nsew")
+        self.before_label.grid(row=0, column=0, padx=15, pady=60, sticky="nsew")
         self.before_label.drop_target_register(DND_FILES)
         self.before_label.dnd_bind("<<Drop>>", self.on_image_drop)
 
@@ -107,20 +107,44 @@ class SimpleUI(TkinterDnD.Tk):
             font=('Comic Sans MS',25), 
             corner_radius=20
         )
-        self.after_label.grid(row=0, column=1, padx=5, pady=30, sticky="nsew")
+        self.after_label.grid(row=0, column=1, padx=15, pady=60, sticky="nsew")
 
         upload_btn = HoverButton(image_section, text="Upload Image", command=self.load_image)
-        upload_btn.pack(pady=20)
+        upload_btn.grid(row=0, column=0, padx=260, pady=15)
 
         reset_btn = HoverButton(image_section, text="Reset Images", command=self.reset_images)
         reset_btn.pack(pady=10)
 
+        save_btn = HoverButton(image_section, text="Save Image", command=self.save_image)
+        save_btn.pack(pady=15)
+
     
         self.image_paths = []  # To store the paths of the two uploaded images
         self.selected_operation = None  # To store the selected operation
+        self.filtered_image = None
     def pathtkimage(path):
         imagepathed=Image.open(path)
         return ImageTk.PhotoImage(imagepathed)
+    
+    def save_image(self):
+        if hasattr(self.after_label, 'image') and self.after_label.image:
+            image_to_save = self.after_label.image
+
+            if isinstance(image_to_save, ImageTk.PhotoImage):
+                pil_image = ImageTk.getimage(image_to_save)  # تحويل PhotoImage إلى PIL.Image
+            else:
+                pil_image = image_to_save
+
+            file_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg")])
+
+            if file_path:
+                pil_image.save(file_path)
+                print(f"Image saved at {file_path}")
+            else:
+                print("Save operation cancelled.")
+        else:
+            print("No image to save.")
+
     
     def plot_histograms(self,hist_orig, hist_equalized):
         """
@@ -528,7 +552,8 @@ class SimpleUI(TkinterDnD.Tk):
     
     def reset_images(self):
         self.image_paths = []
-        self.loaded_images.clear()
+        # self.loaded_images.clear()
+        self.filtered_image = None
 
         # Force-clear image using transparent 1x1 image
         self.before_label.configure(image=self.transparent_img, text="Before")
