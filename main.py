@@ -62,7 +62,7 @@ class SimpleUI(TkinterDnD.Tk):
         button_names = ['ADD', 'SUB', 'Division', 'Complement', 'Change color', 'Swap channel', 'Eliminate color',
                     'Hist stretching', 'Hist equalization', 'AVG filter', 'Laplacian filter', 'MAX', 'MIN',
                     'MEDIAN', 'MODE', 'S&P AVG filter', 'S&P Median Filter', 'S&P Outlier filter', 'IMG AVG', 'GAUSSIAN AVG',
-                    'INT boundary','EXT boundary','Morophology','IMG dilation','IMG erosion','IMG opening',
+                    'IMG dilation','IMG erosion','IMG opening',
                     'BG_THR','AUTO_THR','ADAP_THR','Sobel DET']
         left_button_names = button_names[:15]  # First 10 names
         right_button_names = button_names[15:]  # Remaining 10 names
@@ -407,7 +407,89 @@ class SimpleUI(TkinterDnD.Tk):
                             resultpil=Image.fromarray(result_image)
                             self.display_image(resultpil, label=self.after_label) 
 
-                                 
+
+                        if name == 'BG_THR':
+                            # Open the image
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+
+                            # Call the basic_global_thresholding function from ImgScript
+                            thresholded_img = ImgScript.basic_global_thresholding(npimg)
+
+                            # Convert the result back to a PIL image
+                            resultpil = Image.fromarray(thresholded_img)
+
+                            # Display the result in the "After" label
+                            self.display_image(resultpil, label=self.after_label) 
+
+
+                        if name == 'AUTO_THR':
+                            # Open the image and convert it to grayscale
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+
+                            # Call the automatic_thresholding function from ImgScript
+                            thresholded_img = ImgScript.automatic_thresholding(npimg)
+
+                            # Convert the result back to a PIL image
+                            resultpil = Image.fromarray(thresholded_img)
+
+                            # Display the result in the "After" label
+                            self.display_image(resultpil, label=self.after_label)
+
+
+                        if name == 'ADAP_THR':
+                            # Open the image and convert it to grayscale
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+
+                            # Call the adaptive_thresholding function from ImgScript
+                            thresholded_img = ImgScript.adaptive_thresholding(npimg)
+
+                            # Convert the result back to a PIL image
+                            resultpil = Image.fromarray(thresholded_img)
+
+                            # Display the result in the "After" label
+                            self.display_image(resultpil, label=self.after_label)
+
+
+                        if name == 'Sobel DET':
+                            # Open the image and convert it to grayscale
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+
+                            # Call the sobel_edge_detection function from ImgScript
+                            sobel_img = ImgScript.sobel_edge_detection(npimg)
+
+                            # Convert the result back to a PIL image
+                            resultpil = Image.fromarray(sobel_img)
+
+                            # Display the result in the "After" label
+                            self.display_image(resultpil, label=self.after_label)
+
+
+                        if name == 'IMG dilation':
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+                            result_img = ImgScript.manual_dilation(npimg)  # Call the manual_dilation function
+                            resultpil = Image.fromarray((result_img * 255).astype(np.uint8))  # Convert binary to grayscale
+                            self.display_image(resultpil, label=self.after_label)   
+
+
+                        if name == 'IMG erosion':
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+                            result_img = ImgScript.manual_erosion(npimg)  # Call the manual_erosion function
+                            resultpil = Image.fromarray((result_img * 255).astype(np.uint8))  # Convert binary to grayscale
+                            self.display_image(resultpil, label=self.after_label)    
+
+
+                        if name == 'IMG opening':
+                            pilimg = Image.open(self.image_paths[0]).convert("L")  # Convert to grayscale
+                            npimg = np.array(pilimg)
+                            result_img = ImgScript.manual_opening(npimg)  # Call the manual_opening function
+                            resultpil = Image.fromarray((result_img * 255).astype(np.uint8))  # Convert binary to grayscale
+                            self.display_image(resultpil, label=self.after_label)         
 
                         #Apply a single-image filter (placeholder logic)
                         print(f"Applying filter '{name}' to the first image.")

@@ -4,6 +4,7 @@ import matplotlib as plt
 import cv2
 import tkinter as tk
 from tkinter import messagebox, simpledialog
+from scipy import ndimage 
 
 
 # ============= Image Processing Functions =============
@@ -87,34 +88,7 @@ def histogram_stretching(image):
 
 ## for colored image
 
-# def histogram_stretching_gray(image):
-#     """Histogram stretching for grayscale or RGB image"""
-    
-#     # لو الصورة 2D (يعني grayscale)
-#     if len(image.shape) == 2:
-#         low = np.min(image)
-#         high = np.max(image)
-#         if high != low:
-#             stretched = ((image - low) / (high - low)) * 255
-#         else:
-#             stretched = image
-#         return stretched.astype(np.uint8)
 
-#     # لو الصورة 3D (يعني RGB)
-#     elif len(image.shape) == 3 and image.shape[2] == 3:
-#         stretched = np.zeros_like(image, dtype=np.float32)
-#         for c in range(3):  # لكل قناة R,G,B
-#             channel = image[:, :, c]
-#             low = np.min(channel)
-#             high = np.max(channel)
-#             if high != low:
-#                 stretched[:, :, c] = ((channel - low) / (high - low)) * 255
-#             else:
-#                 stretched[:, :, c] = channel
-#         return stretched.astype(np.uint8)
-    
-#     else:
-#         raise ValueError("Unsupported image format")
 
 def histogram_equalization(image):
     hist_freq,_ = np.histogram(image.flatten(), 256, (0, 256))
@@ -253,24 +227,43 @@ def gaussian_average_filter(image):
 
 # 6. Image Segmentation
 def basic_global_thresholding(image):
-    if len(image.shape) == 3:
-        img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    else:
-        img = image.copy()
+    
+        """
+        Perform basic global thresholding with user input for the threshold value.
+        """
+        # Convert to grayscale if the image is RGB
+        if len(image.shape) == 3:
+            img = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            img = image.copy()
 
-    root = tk.Tk()
-    root.withdraw()
+        # Create a Tkinter root window (hidden)
+        root = tk.Tk()
+        root.withdraw()
 
-    threshold_value = simpledialog.askinteger("Threshold Input", "Enter threshold (0–255):", minvalue=0, maxvalue=255)
+        # Ask the user for the threshold value
+        try:
+            threshold_value = simpledialog.askinteger(
+                "Threshold Input",
+                "Enter threshold value (0–255):",
+                minvalue=0,
+                maxvalue=255
+            )
+            if threshold_value is None:
+                messagebox.showinfo("Cancelled", "Operation cancelled by user.")
+                return img  # Return the original image if cancelled
+        except Exception as e:
+            messagebox.showerror("Error", f"Invalid input: {e}")
+            return img
 
-    if threshold_value is None:
-        messagebox.showinfo("Cancelled", "No threshold was entered.")
-        return image
+        # Apply the thresholding operation
+        thresholded_image = (img > threshold_value).astype('uint8') * 255
 
-    thresholded_image = (img > threshold_value).astype('uint8') * 255
-    messagebox.showinfo("Threshold Applied", f"You entered threshold: {threshold_value}")
+        # Show a confirmation message
+        messagebox.showinfo("Threshold Applied", f"Threshold value: {threshold_value} applied successfully.")
 
-    return thresholded_image
+        return thresholded_image
+
 
 def automatic_thresholding(image):
     if len(image.shape) == 3:
@@ -330,21 +323,134 @@ def adaptive_thresholding(image):
     return np.concatenate(parts, axis=0)
 
 # ==== Sobel Edge Detection ====
-def sobel_edge_detection(image):
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)
-    sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
-    sobel_combined = cv2.magnitude(sobel_x, sobel_y)
-    return np.uint8(sobel_combined)
+def sobel_edge_detection(image, threshold=None):
+    """
+    Perform Sobel edge detection on a grayscale or RGB image.
+    """
+    # Convert to grayscale if the image is RGB
+    if len(image.shape) == 3:
+        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    else:
+        gray = image.copy()
+
+    # Ask the user for a threshold value if not provided
+    if threshold is None:
+        root = tk.Tk()
+        root.withdraw()  # Hide the main window
+        try:
+            threshold = simpledialog.askinteger(
+                "Sobel Edge Detection",
+                "Enter threshold value (0–255):",
+                minvalue=0,
+                maxvalue=255
+            )
+            if threshold is None:
+                messagebox.showinfo("Cancelled", "Operation cancelled by user.")
+                return gray  # Return the original grayscale image if cancelled
+        except Exception as e:
+            messagebox.showerror("Error", f"Invalid input: {e}")
+            return gray
+
+    # Apply Sobel operator in the x and y directions
+    sobel_x = cv2.Sobel(gray, cv2.CV_64F, 1, 0, ksize=3)  # Sobel in x-direction
+    sobel_y = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)  # Sobel in y-direction
+
+    # Compute the gradient magnitude
+    gradient_magnitude = np.sqrt(sobel_x**2 + sobel_y**2)
+    gradient_magnitude = np.clip(gradient_magnitude, 0, 255).astype(np.uint8)
+
+    # Apply threshold
+    _, edge_binary = cv2.threshold(gradient_magnitude, threshold, 255, cv2.THRESH_BINARY)
+
+    return edge_binary
+
 
 # ==== Dilation ====
-def image_dilation(image, kernel_size=3, iterations=1):
-    kernel = np.ones((kernel_size, kernel_size), np.uint8)
-    dilated = cv2.dilate(image, kernel, iterations=iterations)
+def manual_dilation(image, struct_elem=None):
+
+    # Ensure the image is binary (0 and 1)
+    binary = (image > 127).astype(np.uint8)  # Binarize (0 or 1)
+
+    # Define structuring element if not provided
+    if struct_elem is None:
+        struct_elem = np.ones((3, 3), dtype=np.uint8)  # Default: 3x3 square
+    
+    se_h, se_w = struct_elem.shape
+    pad_h, pad_w = se_h // 2, se_w // 2
+
+    # Pad the original image
+    padded = np.pad(binary, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant', constant_values=0)
+
+    # Create an empty output image
+    dilated = np.zeros_like(binary)
+
+    # Perform dilation manually
+    for i in range(pad_h, padded.shape[0] - pad_h):
+        for j in range(pad_w, padded.shape[1] - pad_w):
+            region = padded[i - pad_h:i + pad_h + 1, j - pad_w:j + pad_w + 1]
+            if np.any(region & struct_elem):  # Logical AND then check if any overlap
+                dilated[i - pad_h, j - pad_w] = 1
+
     return dilated
 
 # ==== Erosion ====
-def image_erosion(image, kernel_size=3, iterations=1):
-    kernel = np.ones((kernel_size, kernel_size), np.uint8)
-    eroded = cv2.erode(image, kernel, iterations=iterations)
+def manual_erosion(image, struct_elem=None):
+
+    binary = (image > 127).astype(np.uint8)  # Binarize (0 or 1)
+
+    # Step 2: Define structuring element
+    if struct_elem is None:
+        struct_elem = np.ones((3, 3), dtype=np.uint8)  # Default: 3x3 square
+
+    se_h, se_w = struct_elem.shape
+    pad_h, pad_w = se_h // 2, se_w // 2
+
+    # Step 3: Pad the binary image
+    padded = np.pad(binary, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant', constant_values=0)
+
+    # Step 4: Create an empty output image
+    eroded = np.zeros_like(binary)
+
+    # Step 5: Perform erosion manually
+    for i in range(pad_h, padded.shape[0] - pad_h):
+        for j in range(pad_w, padded.shape[1] - pad_w):
+            region = padded[i - pad_h:i + pad_h + 1, j - pad_w:j + pad_w + 1]
+            if np.all(region[struct_elem == 1] == 1):  # Only set if all structuring element hits are 1
+                eroded[i - pad_h, j - pad_w] = 1
+
     return eroded
+
+
+# ==== Opening ====
+def manual_opening(image, struct_elem=None):
+
+    binary = (image > 127).astype(np.uint8)
+
+    # Step 2: Define structuring element
+    if struct_elem is None:
+        struct_elem = np.ones((3, 3), dtype=np.uint8)
+
+    se_h, se_w = struct_elem.shape
+    pad_h, pad_w = se_h // 2, se_w // 2
+
+    # --- Erosion ---
+    padded = np.pad(binary, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant', constant_values=0)
+    eroded = np.zeros_like(binary)
+
+    for i in range(pad_h, padded.shape[0] - pad_h):
+        for j in range(pad_w, padded.shape[1] - pad_w):
+            region = padded[i - pad_h:i + pad_h + 1, j - pad_w:j + pad_w + 1]
+            if np.all(region[struct_elem == 1] == 1):
+                eroded[i - pad_h, j - pad_w] = 1
+
+    # --- Dilation ---
+    padded_eroded = np.pad(eroded, ((pad_h, pad_h), (pad_w, pad_w)), mode='constant', constant_values=0)
+    opened = np.zeros_like(eroded)
+
+    for i in range(pad_h, padded_eroded.shape[0] - pad_h):
+        for j in range(pad_w, padded_eroded.shape[1] - pad_w):
+            region = padded_eroded[i - pad_h:i + pad_h + 1, j - pad_w:j + pad_w + 1]
+            if np.any(region & struct_elem):
+                opened[i - pad_h, j - pad_w] = 1
+
+    return opened
